@@ -1,0 +1,85 @@
+<!--
+Overview
+
+Create a single‑page HTML file that
+
+    * Accepts a college name in a text input.
+    * Calls https://univ-pid4.onrender.com/colleges/<college> to get matching colleges.
+    * Displays the results as a list of links.
+    * Each link points to https://univ-2-websites.onrender.com/websites/<college> which returns the college’s website URL and is opened in a new tab.
+
+-->
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>College Search</title>
+  <style>
+    body {font-family: Arial, sans-serif; margin: 2rem;}
+    #results {margin-top: 1rem;}
+    li {margin: 0.3rem 0;}
+  </style>
+</head>
+<body>
+
+<h2>Search Colleges</h2>
+<input type="text" id="searchInput" placeholder="Enter college name…" />
+<button id="searchBtn">Search</button>
+
+<ul id="results"></ul>
+
+<script>
+  const apiBase = 'https://univ-pid4.onrender.com/colleges';
+  const websiteBase = 'https://univ-2-websites.onrender.com/websites';
+
+  document.getElementById('searchBtn').addEventListener('click', () => {
+    const query = document.getElementById('searchInput').value.trim();
+    if (!query) return;
+    fetchColleges(query);
+  });
+
+  // Optional: trigger search on Enter key
+  document.getElementById('searchInput').addEventListener('keypress', e => {
+    if (e.key === 'Enter') document.getElementById('searchBtn').click();
+  });
+
+  async function fetchColleges(college) {
+    const url = `${apiBase}/${encodeURIComponent(college)}`;
+    try {
+      const resp = await fetch(url);
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      const data = await resp.json();
+      displayResults(data.Colleges || []);
+    } catch (err) {
+      console.error(err);
+      document.getElementById('results').innerHTML = `<li>Error fetching data</li>`;
+    }
+  }
+
+  function displayResults(list) {
+    const ul = document.getElementById('results');
+    ul.innerHTML = ''; // clear previous results
+
+    // Remove duplicates while preserving order
+    const unique = [...new Set(list)];
+
+    unique.forEach(name => {
+      const li = document.createElement('li');
+      const a = document.createElement('a');
+      a.textContent = name;
+      a.href = `${websiteBase}/${encodeURIComponent(name)}`;
+      a.target = '_blank'; // open in new tab
+      li.appendChild(a);
+      ul.appendChild(li);
+    });
+
+    if (unique.length === 0) {
+      ul.innerHTML = '<li>No matches found.</li>';
+    }
+  }
+</script>
+
+</body>
+</html>

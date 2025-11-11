@@ -1,0 +1,159 @@
+<!--
+Overview
+
+Create a single‑page HTML app that:
+
+    * Accepts a college name via a text input (Enter key or Search button).
+    * Fetches matching colleges from https://univ-pid4.onrender.com/colleges/<college>.
+    * Shows the results as a list of clickable items.
+    * When an item is clicked, it calls https://univ-2-websites.onrender.com/websites/<college> and displays the returned "Webpages" array inline on the same page (instead of opening a new tab).
+
+The page handles loading states, errors, and removes duplicate college names while preserving order. No build tools are required; the solution with Vue 3 (CDN).
+
+-->
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>College Search – Inline Websites</title>
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+  <style>
+    body {font-family: Arial, sans-serif; margin: 2rem;}
+    input {padding:0.4rem; width:260px;}
+    button {padding:0.4rem 0.8rem; margin-left:0.5rem;}
+    ul {margin-top:1rem; list-style:none; padding:0;}
+    li {margin:0.3rem 0;}
+    a {color:#0066cc; cursor:pointer; text-decoration:none;}
+    a:hover {text-decoration:underline;}
+    .error {color:#c00;}
+    .loading {font-style:italic;}
+    .webpages {margin-top:1rem; background:#f9f9f9; padding:0.8rem; border-radius:4px;}
+    .webpages h3 {margin-top:0;}
+    .webpages a {display:block; margin:0.2rem 0;}
+  </style>
+</head>
+<body>
+<div id="app">
+  <h2>College Search</h2>
+
+  <input v-model="query"
+         @keyup.enter="search"
+         placeholder="Enter college name…" />
+  <button @click="search" :disabled="loading">Search</button>
+
+  <p v-if="loading" class="loading">Loading…</p>
+  <p v-if="error" class="error">{{ error }}</p>
+
+  <ul v-if="results.length">
+    <li v-for="(college, idx) in uniqueResults" :key="idx">
+      <a @click="fetchWebpages(college)">{{ college }}</a>
+    </li>
+  </ul>
+
+  <p v-else-if="!loading && !error && searched">No matches found.</p>
+
+  <!-- Webpages panel -->
+  <div v-if="selectedCollege" class="webpages">
+    <h3>Webpages for "{{ selectedCollege }}"</h3>
+
+    <p v-if="webLoading" class="loading">Fetching webpages…</p>
+    <p v-if="webError" class="error">{{ webError }}</p>
+
+    <ul v-if="webpages.length">
+      <li v-for="(url, i) in webpages" :key="i">
+        <a :href="url" target="_blank">{{ url }}</a>
+      </li>
+    </ul>
+
+    <p v-else-if="!webLoading && !webError">No webpages returned.</p>
+  </div>
+</div>
+
+<script>
+const { createApp, ref, computed } = Vue;
+
+createApp({
+  setup() {
+    const query = ref('');
+    const results = ref([]);
+    const loading = ref(false);
+    const error = ref('');
+    const searched = ref(false);
+
+    const selectedCollege = ref('');
+    const webpages = ref([]);
+    const webLoading = ref(false);
+    const webError = ref('');
+
+    const apiBase = 'https://univ-pid4.onrender.com/colleges';
+    const websiteBase = 'https://univ-2-websites.onrender.com/websites';
+
+    // ---- Search colleges -------------------------------------------------
+    const search = async () => {
+      const term = query.value.trim();
+      if (!term) return;
+
+      loading.value = true;
+      error.value = '';
+      results.value = [];
+      searched.value = false;
+      selectedCollege.value = '';
+      webpages.value = [];
+
+      try {
+        const resp = await fetch(`${apiBase}/${encodeURIComponent(term)}`);
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        const data = await resp.json();
+        results.value = data.Colleges || [];
+      } catch (e) {
+        console.error(e);
+        error.value = 'Failed to fetch colleges.';
+      } finally {
+        loading.value = false;
+        searched.value = true;
+      }
+    };
+
+    // ---- Fetch webpages for a single college -----------------------------
+    const fetchWebpages = async (college) => {
+      selectedCollege.value = college;
+      webpages.value = [];
+      webError.value = '';
+      webLoading.value = true;
+
+      try {
+        const resp = await fetch(`${websiteBase}/${encodeURIComponent(college)}`);
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        const data = await resp.json();
+        webpages.value = data.Webpages || [];
+      } catch (e) {
+        console.error(e);
+        webError.value = 'Failed to fetch webpages.';
+      } finally {
+        webLoading.value = false;
+      }
+    };
+
+    const uniqueResults = computed(() => [...new Set(results.value)]);
+
+    return {
+      query,
+      results,
+      loading,
+      error,
+      searched,
+      search,
+      uniqueResults,
+      fetchWebpages,
+      selectedCollege,
+      webpages,
+      webLoading,
+      webError,
+    };
+  },
+}).mount('#app');
+</script>
+</body>
+</html>
